@@ -1,5 +1,5 @@
 # Ernies-Auto-Parts-Analysis
-I run the sales side of Ernie’s Auto Parts, a small B2B wholesale auto parts business supplying collision and body shops in the LA area. The business has been in my comtrol since January 2024, since then I’ve managed the accounts and vendor relationships since 2024.
+I run the sales side of Ernie’s Auto Parts, a small B2B wholesale auto parts business supplying collision and body shops in the LA area. The business has been in my control since January 2024, since then I’ve managed the accounts and vendor relationships since 2024.
 
 Since I started tracking things closely, the accounts have brought in over $300,000 combined through mid 2026. One account makes up most of that now, close to 80% of this year’s revenue, which came from just showing up consistently and doing right by them over time, not from any kind of aggressive sales push.
 
