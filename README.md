@@ -1,2 +1,6 @@
 # Ernies-Auto-Parts-Analysis
-B2B sales analysis for my auto parts business. Tracks revenue and account trends from 2024 through 2026 using real sales data.
+I run the sales side of Ernie’s Auto Parts, a small B2B wholesale auto parts business supplying collision and body shops in the LA area. The business has been in my comtrol since January 2024, since then I’ve managed the accounts and vendor relationships since 2024.
+
+Since I started tracking things closely, the accounts have brought in over $300,000 combined through mid 2026. One account makes up most of that now, close to 80% of this year’s revenue, which came from just showing up consistently and doing right by them over time, not from any kind of aggressive sales push.
+
+Starting in 2025 I made a call not to grow the business further. Once I got serious about school and started building toward a career in business analytics and consulting, I didn’t want to keep expanding something I’d eventually have to step away from. The accounts I have are with me because they trust me personally, not because of a sales process, so growing it just to hand it off later never made sense. I still track every account monthly, keep full retention on the ones I have, and can back up all of this with sales reports, business permits, and purchase orders if anyone wants to see them.
