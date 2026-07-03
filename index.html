@@ -6,6 +6,7 @@
 <title>Ernie's Auto Parts — Sales Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'IBM Plex Mono', monospace; background: #181C22; color: #EDEDE7; }
@@ -22,231 +23,244 @@
   .card { background: #1F242C; border: 1px solid #2C333D; border-radius: 2px; }
   .ticket-edge { background: repeating-linear-gradient(90deg, transparent, transparent 6px, #2C333D 6px, #2C333D 12px); height: 1px; }
   ::selection { background: #E8570A; color: #14181D; }
-  #loading { display:flex; align-items:center; justify-content:center; height:100vh; color:#9CA9B7; font-family:'Inter',sans-serif; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card { padding: 18px 20px; }
+  .stat-label { font-size: 11px; letter-spacing: 0.12em; color: #9CA9B7; margin-bottom: 8px; }
+  .stat-value { font-size: 26px; font-weight: 600; color: #F5F3EC; }
+  .stat-value.accent { color: #E8570A; }
+  .stat-sub { font-size: 12px; color: #5A6472; margin-top: 4px; }
+  .section-label { color: #E8570A; font-size: 13px; letter-spacing: 0.15em; margin-bottom: 14px; text-transform: uppercase; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap.tall { height: 340px; }
 </style>
 </head>
 <body>
-<div id="root"><div id="loading">Loading dashboard…</div></div>
 
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
-<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-<script type="text/babel">
-const { useState } = React;
-const {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend
-} = Recharts;
-
-const monthly = [
-  { m: "Jan24", v: 12737.24 }, { m: "Feb24", v: 8664.40 }, { m: "Mar24", v: 10164.00 },
-  { m: "Apr24", v: 11189.00 }, { m: "May24", v: 10169.59 }, { m: "Jun24", v: 12274.00 },
-  { m: "Jul24", v: 14896.00 }, { m: "Aug24", v: 7084.00 }, { m: "Sep24", v: 5965.83 },
-  { m: "Oct24", v: 15623.00 }, { m: "Nov24", v: 11216.00 }, { m: "Dec24", v: 5191.00 },
-  { m: "Jan25", v: 14600.09 }, { m: "Feb25", v: 9037.15 }, { m: "Mar25", v: 9314.00 },
-  { m: "Apr25", v: 9243.21 }, { m: "May25", v: 8341.20 }, { m: "Jun25", v: 8316.00 },
-  { m: "Jul25", v: 8670.00 }, { m: "Aug25", v: 4618.00 }, { m: "Sep25", v: 11490.00 },
-  { m: "Oct25", v: 10853.00 }, { m: "Nov25", v: 8025.92 }, { m: "Dec25", v: 9283.00 },
-  { m: "Jan26", v: 12734.49 }, { m: "Feb26", v: 11094.00 }, { m: "Mar26", v: 17126.00 },
-  { m: "Apr26", v: 8826.00 }, { m: "May26", v: 7137.00 }, { m: "Jun26", v: 6959.00 },
-];
-
-const yearly = [
-  { year: "2024", total: 125174.06 },
-  { year: "2025", total: 111791.57 },
-  { year: "2026 YTD", total: 63876.49 },
-];
-
-const accounts = [
-  { name: "Confidential Collision LLC", "2024": 87965.43, "2025": 79139.87, "2026": 51278.49, color: "#E8570A" },
-  { name: "5 Stars Automotive", "2024": 30142.80, "2025": 26405.00, "2026": 8304.00, color: "#3E6C9E" },
-  { name: "Quality Collision & Motors", "2024": 3219.00, "2025": 1000.00, "2026": 1050.00, color: "#9CA9B7" },
-  { name: "Long Beach Collision Ctr", "2024": 0, "2025": 3130.00, "2026": 1144.00, color: "#C9A227" },
-  { name: "Other / churned accounts", "2024": 3846.83, "2025": 2116.70, "2026": 2100.00, color: "#5A6472" },
-];
-
-const pieData2026 = accounts.map(a => ({ name: a.name, value: a["2026"], color: a.color }));
-
-function StatCard({ label, value, sub, accent }) {
-  return (
-    <div className="card" style={{ padding: "18px 20px", borderLeft: accent ? "3px solid #E8570A" : "1px solid #2C333D" }}>
-      <div className="display" style={{ fontSize: 11, letterSpacing: "0.12em", color: "#9CA9B7", marginBottom: 8 }}>{label}</div>
-      <div className="display" style={{ fontSize: 26, fontWeight: 600, color: accent ? "#E8570A" : "#F5F3EC" }}>{value}</div>
-      {sub && <div className="body-font" style={{ fontSize: 12, color: "#5A6472", marginTop: 4 }}>{sub}</div>}
+<div style="border-bottom: 3px solid #E8570A; padding: 36px 40px 24px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
+    <div>
+      <div class="display" style="color:#E8570A; font-size:12px; letter-spacing:0.25em; margin-bottom:8px;">ACCOUNT LEDGER · SALES ANALYSIS</div>
+      <h1 class="display" style="font-size:42px; font-weight:700; margin:0; color:#F5F3EC;">ERNIE'S AUTO PARTS</h1>
+      <div class="body-font" style="color:#9CA9B7; font-size:14px; margin-top:6px;">B2B Wholesale Sales Portfolio · Jan 2024 – Jun 2026</div>
     </div>
-  );
-}
-
-function SectionLabel({ children }) {
-  return (
-    <div className="display" style={{ color: "#E8570A", fontSize: 13, letterSpacing: "0.15em", marginBottom: 14 }}>
-      {children.toString().toUpperCase()}
+    <div class="body-font" style="text-align:right;">
+      <div style="font-size:11px; color:#5A6472;">PREPARED</div>
+      <div style="font-size:14px; color:#EDEDE7;">Jul 02, 2026</div>
+      <div style="font-size:11px; color:#5A6472; margin-top:8px;">RECORD NO.</div>
+      <div style="font-size:14px; color:#EDEDE7;">001–700 / LEDGER-3YR</div>
     </div>
-  );
-}
+  </div>
+</div>
 
-function Report() {
-  const [tab, setTab] = useState("overview");
-  const totalRevenue = 300842.12;
-  const annualizedRun = (63876.49 / 6) * 12;
+<div style="display:flex; border-bottom:1px solid #2C333D; padding:0 40px; background:#14181D;">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="accounts">Accounts</button>
+  <button class="tab-btn" data-tab="trend">Monthly Trend</button>
+</div>
 
-  return (
-    <div style={{ fontFamily: "'IBM Plex Mono', monospace", background: "#181C22", color: "#EDEDE7", minHeight: "100vh" }}>
-      <div style={{ borderBottom: "3px solid #E8570A", padding: "36px 40px 24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
-          <div>
-            <div style={{ color: "#E8570A", fontSize: 12, letterSpacing: "0.25em", marginBottom: 8 }} className="display">
-              ACCOUNT LEDGER · SALES ANALYSIS
-            </div>
-            <h1 className="display" style={{ fontSize: 42, fontWeight: 700, margin: 0, color: "#F5F3EC" }}>ERNIE'S AUTO PARTS</h1>
-            <div className="body-font" style={{ color: "#9CA9B7", fontSize: 14, marginTop: 6 }}>
-              B2B Wholesale Sales Portfolio · Jan 2024 – Jun 2026
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }} className="body-font">
-            <div style={{ fontSize: 11, color: "#5A6472" }}>PREPARED</div>
-            <div style={{ fontSize: 14, color: "#EDEDE7" }}>Jul 02, 2026</div>
-            <div style={{ fontSize: 11, color: "#5A6472", marginTop: 8 }}>RECORD NO.</div>
-            <div style={{ fontSize: 14, color: "#EDEDE7" }}>001–700 / LEDGER-3YR</div>
-          </div>
-        </div>
+<div style="padding:32px 40px 60px; max-width:1100px; margin:0 auto;">
+
+  <div class="tab-panel active" id="panel-overview">
+    <div class="stat-grid">
+      <div class="card stat-card" style="border-left:3px solid #E8570A;">
+        <div class="stat-label">CUMULATIVE REVENUE</div>
+        <div class="stat-value accent">$300,842.12</div>
       </div>
-
-      <div style={{ display: "flex", borderBottom: "1px solid #2C333D", padding: "0 40px", background: "#14181D" }}>
-        {[
-          { id: "overview", label: "Overview" },
-          { id: "accounts", label: "Accounts" },
-          { id: "trend", label: "Monthly Trend" },
-        ].map(t => (
-          <button key={t.id} className={"tab-btn " + (tab === t.id ? "active" : "")} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
+      <div class="card stat-card">
+        <div class="stat-label">MULTI-ACCOUNT PORTFOLIO</div>
+        <div class="stat-value">B2B</div>
+        <div class="stat-sub">built on service quality, not sales volume</div>
       </div>
-
-      <div style={{ padding: "32px 40px 60px", maxWidth: 1100, margin: "0 auto" }}>
-
-        {tab === "overview" && (
-          <React.Fragment>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 32 }}>
-              <StatCard label="CUMULATIVE REVENUE" value={"$" + totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })} accent />
-              <StatCard label="MULTI-ACCOUNT PORTFOLIO" value="B2B" sub="built on service quality, not sales volume" />
-              <StatCard label="2026 ANNUALIZED RUN RATE" value={"$" + Math.round(annualizedRun).toLocaleString()} sub="based on Jan–Jun 2026" />
-              <StatCard label="PRIORITY ACCOUNT SHARE, 2026" value="80%" sub="Confidential Collision LLC" />
-            </div>
-
-            <div className="ticket-edge" style={{ margin: "0 0 32px" }} />
-
-            <div className="card body-font" style={{ padding: 28, marginBottom: 28, lineHeight: 1.7, color: "#C8CDD3", fontSize: 15 }}>
-              <div className="display" style={{ color: "#E8570A", fontSize: 13, letterSpacing: "0.15em", marginBottom: 12 }}>FINDINGS</div>
-              Revenue has held steady at roughly $125,000 to $128,000 annually across the full period, though the
-              composition beneath that figure has shifted meaningfully. Confidential Collision LLC now accounts for
-              close to 80% of 2026 revenue, up from about 70% in 2024, a concentration built entirely through
-              sustained service quality rather than active sales effort. Beginning in 2024, I made a deliberate
-              tradeoff to hold the account base steady rather than pursue further growth, redirecting that time
-              toward completing coursework and preparing for a career in business analytics and consulting.
-              Because these accounts are grounded in personal trust rather than a transferable sales process,
-              expanding the business further would not have served that longer term goal. Underlying records,
-              including sales reports, business permits, and purchase orders, are available for verification.
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div className="card" style={{ padding: 24 }}>
-                <SectionLabel>Annual Revenue</SectionLabel>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={yearly}>
-                    <CartesianGrid stroke="#2C333D" vertical={false} />
-                    <XAxis dataKey="year" tick={{ fill: "#9CA9B7", fontSize: 12 }} axisLine={{ stroke: "#2C333D" }} tickLine={false} />
-                    <YAxis tick={{ fill: "#9CA9B7", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => "$" + (v/1000).toFixed(0) + "k"} />
-                    <Tooltip contentStyle={{ background: "#1F242C", border: "1px solid #2C333D", fontFamily: "IBM Plex Mono" }}
-                      formatter={(v) => ["$" + v.toLocaleString(undefined, { minimumFractionDigits: 2 }), "Revenue"]} />
-                    <Bar dataKey="total" fill="#E8570A" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="card" style={{ padding: 24 }}>
-                <SectionLabel>2026 Revenue Share by Account</SectionLabel>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie data={pieData2026} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                      {pieData2026.map((entry, i) => <Cell key={i} fill={entry.color} stroke="#181C22" strokeWidth={2} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ background: "#1F242C", border: "1px solid #2C333D", fontFamily: "IBM Plex Mono" }}
-                      formatter={(v) => "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2 })} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </React.Fragment>
-        )}
-
-        {tab === "accounts" && (
-          <React.Fragment>
-            <SectionLabel>Revenue by Account, Year over Year</SectionLabel>
-            <div className="card" style={{ padding: 24, marginBottom: 24 }}>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={accounts} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid stroke="#2C333D" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#9CA9B7", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => "$" + (v/1000).toFixed(0) + "k"} />
-                  <YAxis type="category" dataKey="name" width={190} tick={{ fill: "#EDEDE7", fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "#1F242C", border: "1px solid #2C333D", fontFamily: "IBM Plex Mono" }}
-                    formatter={(v) => "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })} />
-                  <Legend wrapperStyle={{ fontFamily: "Inter", fontSize: 12, color: "#9CA9B7" }} />
-                  <Bar dataKey="2024" fill="#5A6472" radius={[0, 2, 2, 0]} />
-                  <Bar dataKey="2025" fill="#3E6C9E" radius={[0, 2, 2, 0]} />
-                  <Bar dataKey="2026" fill="#E8570A" radius={[0, 2, 2, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="card" style={{ padding: 20 }}>
-              <div className="display" style={{ color: "#E8570A", fontSize: 13, letterSpacing: "0.1em", marginBottom: 8 }}>TOP ACCOUNT</div>
-              <div className="body-font" style={{ color: "#EDEDE7", fontSize: 15, marginBottom: 4 }}>Confidential Collision LLC</div>
-              <div className="body-font" style={{ color: "#9CA9B7", fontSize: 13, lineHeight: 1.6 }}>
-                $87,965 in 2024, $79,140 in 2025, and $51,278 through June 2026, on pace for roughly $102,500 this
-                year. This level of concentration developed organically, through consistent service over multiple
-                years rather than deliberate account expansion.
-              </div>
-            </div>
-          </React.Fragment>
-        )}
-
-        {tab === "trend" && (
-          <React.Fragment>
-            <SectionLabel>Monthly Revenue, Jan 2024 – Jun 2026</SectionLabel>
-            <div className="card" style={{ padding: 24 }}>
-              <ResponsiveContainer width="100%" height={340}>
-                <LineChart data={monthly}>
-                  <CartesianGrid stroke="#2C333D" vertical={false} />
-                  <XAxis dataKey="m" tick={{ fill: "#9CA9B7", fontSize: 10 }} axisLine={{ stroke: "#2C333D" }} tickLine={false} interval={2} />
-                  <YAxis tick={{ fill: "#9CA9B7", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => "$" + (v/1000).toFixed(0) + "k"} />
-                  <Tooltip contentStyle={{ background: "#1F242C", border: "1px solid #2C333D", fontFamily: "IBM Plex Mono" }}
-                    formatter={(v) => ["$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }), "Revenue"]} />
-                  <Line type="monotone" dataKey="v" stroke="#E8570A" strokeWidth={2} dot={{ r: 2, fill: "#E8570A" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="body-font" style={{ color: "#5A6472", fontSize: 12, marginTop: 12 }}>
-              Monthly revenue before tax, aggregated from sales trend and terms reports. March 2026 ($17,126) is the
-              strongest month in the dataset; August 2025 ($4,618) is the weakest.
-            </div>
-          </React.Fragment>
-        )}
+      <div class="card stat-card">
+        <div class="stat-label">2026 ANNUALIZED RUN RATE</div>
+        <div class="stat-value">$127,753</div>
+        <div class="stat-sub">based on Jan–Jun 2026</div>
       </div>
-
-      <div style={{ borderTop: "1px solid #2C333D", padding: "20px 40px", textAlign: "center" }} className="body-font">
-        <span style={{ color: "#5A6472", fontSize: 11, letterSpacing: "0.1em" }}>
-          ERNIE'S AUTO PARTS · INTERNAL SALES LEDGER ANALYSIS · PREPARED FOR PORTFOLIO USE
-        </span>
+      <div class="card stat-card">
+        <div class="stat-label">PRIORITY ACCOUNT SHARE, 2026</div>
+        <div class="stat-value">80%</div>
+        <div class="stat-sub">Confidential Collision LLC</div>
       </div>
     </div>
-  );
-}
 
-ReactDOM.createRoot(document.getElementById('root')).render(<Report />);
+    <div class="ticket-edge" style="margin:0 0 32px;"></div>
+
+    <div class="card body-font" style="padding:28px; margin-bottom:28px; line-height:1.7; color:#C8CDD3; font-size:15px;">
+      <div class="section-label">Findings</div>
+      Revenue has held steady at roughly $125,000 to $128,000 annually across the full period, though the
+      composition beneath that figure has shifted meaningfully. Confidential Collision LLC now accounts for
+      close to 80% of 2026 revenue, up from about 70% in 2024, a concentration built entirely through
+      sustained service quality rather than active sales effort. Beginning in 2024, I made a deliberate
+      tradeoff to hold the account base steady rather than pursue further growth, redirecting that time
+      toward completing coursework and preparing for a career in business analytics and consulting.
+      Because these accounts are grounded in personal trust rather than a transferable sales process,
+      expanding the business further would not have served that longer term goal. Underlying records,
+      including sales reports, business permits, and purchase orders, are available for verification.
+    </div>
+
+    <div class="two-col">
+      <div class="card" style="padding:24px;">
+        <div class="section-label">Annual Revenue</div>
+        <div class="chart-wrap"><canvas id="yearlyChart"></canvas></div>
+      </div>
+      <div class="card" style="padding:24px;">
+        <div class="section-label">2026 Revenue Share by Account</div>
+        <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-accounts">
+    <div class="section-label">Revenue by Account, Year over Year</div>
+    <div class="card" style="padding:24px; margin-bottom:24px;">
+      <div class="chart-wrap tall"><canvas id="accountsChart"></canvas></div>
+    </div>
+    <div class="card" style="padding:20px;">
+      <div class="display" style="color:#E8570A; font-size:13px; letter-spacing:0.1em; margin-bottom:8px;">TOP ACCOUNT</div>
+      <div class="body-font" style="color:#EDEDE7; font-size:15px; margin-bottom:4px;">Confidential Collision LLC</div>
+      <div class="body-font" style="color:#9CA9B7; font-size:13px; line-height:1.6;">
+        $87,965 in 2024, $79,140 in 2025, and $51,278 through June 2026, on pace for roughly $102,500 this
+        year. This level of concentration developed organically, through consistent service over multiple
+        years rather than deliberate account expansion.
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-trend">
+    <div class="section-label">Monthly Revenue, Jan 2024 – Jun 2026</div>
+    <div class="card" style="padding:24px;">
+      <div class="chart-wrap tall"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="body-font" style="color:#5A6472; font-size:12px; margin-top:12px;">
+      Monthly revenue before tax, aggregated from sales trend and terms reports. March 2026 ($17,126) is the
+      strongest month in the dataset; August 2025 ($4,618) is the weakest.
+    </div>
+  </div>
+
+</div>
+
+<div style="border-top:1px solid #2C333D; padding:20px 40px; text-align:center;" class="body-font">
+  <span style="color:#5A6472; font-size:11px; letter-spacing:0.1em;">
+    ERNIE'S AUTO PARTS · INTERNAL SALES LEDGER ANALYSIS · PREPARED FOR PORTFOLIO USE
+  </span>
+</div>
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  const gridColor = '#2C333D';
+  const tickColor = '#9CA9B7';
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  Chart.defaults.color = tickColor;
+
+  const money = v => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  const moneyShort = v => '$' + (v/1000).toFixed(0) + 'k';
+
+  new Chart(document.getElementById('yearlyChart'), {
+    type: 'bar',
+    data: {
+      labels: ['2024', '2025', '2026 YTD'],
+      datasets: [{
+        data: [125174.06, 111791.57, 63876.49],
+        backgroundColor: '#E8570A',
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => money(c.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: tickColor } },
+        y: { grid: { color: gridColor }, ticks: { color: tickColor, callback: moneyShort } }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Confidential Collision LLC', '5 Stars Automotive', 'Quality Collision & Motors', 'Long Beach Collision Ctr', 'Other / churned accounts'],
+      datasets: [{
+        data: [51278.49, 8304.00, 1050.00, 1144.00, 2100.00],
+        backgroundColor: ['#E8570A', '#3E6C9E', '#9CA9B7', '#C9A227', '#5A6472'],
+        borderColor: '#181C22',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: tickColor, font: { size: 10 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: c => c.label + ': ' + money(c.raw) } }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('accountsChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Confidential Collision LLC', '5 Stars Automotive', 'Quality Collision & Motors', 'Long Beach Collision Ctr', 'Other / churned accounts'],
+      datasets: [
+        { label: '2024', data: [87965.43, 30142.80, 3219.00, 0, 3846.83], backgroundColor: '#5A6472' },
+        { label: '2025', data: [79139.87, 26405.00, 1000.00, 3130.00, 2116.70], backgroundColor: '#3E6C9E' },
+        { label: '2026', data: [51278.49, 8304.00, 1050.00, 1144.00, 2100.00], backgroundColor: '#E8570A' },
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: tickColor } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ': ' + money(c.raw) } }
+      },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: tickColor, callback: moneyShort } },
+        y: { grid: { display: false }, ticks: { color: '#EDEDE7', font: { size: 11 } } }
+      }
+    }
+  });
+
+  const months = ["Jan24","Feb24","Mar24","Apr24","May24","Jun24","Jul24","Aug24","Sep24","Oct24","Nov24","Dec24",
+    "Jan25","Feb25","Mar25","Apr25","May25","Jun25","Jul25","Aug25","Sep25","Oct25","Nov25","Dec25",
+    "Jan26","Feb26","Mar26","Apr26","May26","Jun26"];
+  const values = [12737.24,8664.40,10164.00,11189.00,10169.59,12274.00,14896.00,7084.00,5965.83,15623.00,11216.00,5191.00,
+    14600.09,9037.15,9314.00,9243.21,8341.20,8316.00,8670.00,4618.00,11490.00,10853.00,8025.92,9283.00,
+    12734.49,11094.00,17126.00,8826.00,7137.00,6959.00];
+
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        data: values,
+        borderColor: '#E8570A',
+        backgroundColor: 'rgba(232,87,10,0.1)',
+        pointRadius: 2,
+        pointBackgroundColor: '#E8570A',
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => money(c.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: tickColor, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+        y: { grid: { color: gridColor }, ticks: { color: tickColor, callback: moneyShort } }
+      }
+    }
+  });
 </script>
 </body>
 </html>
